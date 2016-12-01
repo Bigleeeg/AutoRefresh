@@ -48,6 +48,13 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+    <None Include="Resources\58.mcr" />
+    <None Include="Resources\ganji.mcr" />
+    <None Include="Resources\refresh.xlsx" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Resources\log.txt" />
+    <Content Include="Resources\MacroRecorderSetup.exe" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

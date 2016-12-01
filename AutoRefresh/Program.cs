@@ -15,34 +15,43 @@ namespace AutoRefresh
 {
     class Program
     {
+        public static List<string> webSiteList = new List<string>() { "ganji", "58" };
+
         static void Main(string[] args)
         {
-            LogIn2("西稍门z02", "liu321");
-            //GetCookie("", "", "西稍门z59", "liu321");
+            DoRefresh();
         }
 
-        private static void DoTest()
+        private static void DoRefresh()
         {
-            string path = @"C:\Users\kj01\Desktop\test.mcr";  //测试一个word文档
-
-
-            DataTable dt = GetDataTableByExcel(@"C:\Users\kj01\Desktop\111.xlsx");
-            if (dt != null && dt.Rows.Count > 0)
+            foreach (string webSiteName in webSiteList)
             {
-                foreach (DataRow dr in dt.Rows)
+                string path = string.Format(@"C:\Users\kj01\Desktop\{0}.mcr", webSiteName);
+                string logPath = @"C:\Users\kj01\Desktop\log.txt";
+                DataTable dt = GetDataTableByExcel(@"C:\Users\kj01\Desktop\refresh.xlsx", webSiteName);
+                if (dt != null && dt.Rows.Count > 0)
                 {
-                    try
+
+                    WriteLog(logPath, GenerateLogHead(webSiteName));
+
+                    foreach (DataRow dr in dt.Rows)
                     {
-                        if (!string.IsNullOrEmpty(dr["Username"].ToString().Trim()) && !string.IsNullOrEmpty(dr["Password"].ToString().Trim()))
+                        try
                         {
-                            GenerateFile(path, dr["Username"].ToString().Trim(), dr["Password"].ToString().Trim());
+                            if (!string.IsNullOrEmpty(dr["Username"].ToString().Trim()) && !string.IsNullOrEmpty(dr["Password"].ToString().Trim()))
+                            {
+                                GenerateFile(path, dr["Username"].ToString().Trim(), dr["Password"].ToString().Trim());
+                            }
+                        }
+                        catch
+                        {
+
                         }
                     }
-                    catch
-                    {
 
-                    }
+                    WriteLog(logPath, GenerateLogEnd(webSiteName,dt.Rows.Count));
                 }
+
             }
         }
 
@@ -73,7 +82,7 @@ namespace AutoRefresh
                 File.WriteAllText(path, content);
                 System.Diagnostics.Process.Start(path); //打开此文件。 
 
-                Thread.Sleep(40000);
+                Thread.Sleep(25000);
             }
             catch
             {
@@ -81,8 +90,7 @@ namespace AutoRefresh
             }
         }
 
-
-        private static DataTable GetDataTableByExcel(string filePath)
+        private static DataTable GetDataTableByExcel(string filePath, string webSiteName)
         {
             DataSet ds = new DataSet();
             DataTable dt = new DataTable();
@@ -109,7 +117,7 @@ namespace AutoRefresh
                     OleDbConnection Conn = new OleDbConnection(ConnStr);
                     Conn.Open();
                     //填充数据
-                    string sql = string.Format("select * from [{0}$]", "Sheet1");
+                    string sql = string.Format("select * from [{0}$]", webSiteName);
                     OleDbDataAdapter da = new OleDbDataAdapter(sql, ConnStr);
                     da.Fill(ds);
                 }
@@ -126,200 +134,32 @@ namespace AutoRefresh
             return dt;
         }
 
-        private static void LogIn(string userName, string passWord)
+        private static string GenerateLogHead(string webSiteName)
         {
+            StringBuilder sb = new StringBuilder();
+            sb.Append("---------------------------------------------------------------\r\n");
+            sb.AppendFormat("-------------{0} 开始刷新 {1}-----------------\r\n", DateTime.Now, webSiteName);
 
-            string postString = @"callback=jQuery18204269285847678401_1480334545434&username={0}&password={1}&checkCode=&setcookie=14&second=&parentfunc=&redirect_in_iframe=&next=%2F&__hash__=yUspR%2FZe9QvSlCpmWojpC7wXsPfslKE2WcOxGLPSM8f5THDnVvbleSinwqABKrcA&_=1480335250600";//这里即为传递的参数，可以用工具抓包分析，也可以自己分析，主要是form里面每一个name都要加进来  
-            postString = string.Format(postString, userName, passWord);
-            byte[] postData = Encoding.UTF8.GetBytes(postString);//编码，尤其是汉字，事先要看下抓取网页的编码方式  
-            string url = "https://passport.ganji.com/login.php?";//地址  
-            WebClient webClient = new WebClient();
-            //webClient.Headers.Add("Content-Type", "application/x-www-form-urlencoded");//采取POST方式必须加的header，如果改为GET方式的话就去掉这句话即可  
-            byte[] responseData = webClient.UploadData(url, "GET", postData);//得到返回字符流  
-            string srcString = Encoding.UTF8.GetString(responseData);//解码 
-
-
-            string url1 = "http://sync.ganji.com.cn/passport/sync.php?postData=%7B%22source%22%3A%22passport%22%2C%22act%22%3A%22login%22%2C%22site_id%22%3A5%2C%22sscode%22%3A%22SeyjCzz2tkWn%2B9oiSeVGRrlr%22%2C%22cookie_expire%22%3A1481542016%7D";
-            postData = new byte[1];
-            byte[] responseData1 = webClient.UploadData(url1, "POST", postData);//得到返回字符流  
-            string srcString1 = Encoding.UTF8.GetString(responseData);//解码 
-
+            return sb.ToString();
         }
 
-
-        private static void LogIn1(string userName, string passWord)
+        private static string GenerateLogEnd(string webSiteName, int rowNums)
         {
-            string postString = @"username={0}&password={1}";//这里即为传递的参数，可以用工具抓包分析，也可以自己分析，主要是form里面每一个name都要加进来  
-            postString = string.Format(postString, userName, passWord);
+            StringBuilder sb = new StringBuilder();
+            sb.AppendFormat("-------------{0} 刷新完成 {1}-----------------\r\n", DateTime.Now, webSiteName);
+            sb.AppendFormat("-------------共刷新 {0} 条数据 ----------------------------------\r\n", rowNums.ToString());
 
-            HttpWebRequest request = (HttpWebRequest)WebRequest.Create("https://passport.ganji.com/login.php");
-            request.CookieContainer = new CookieContainer();
-            CookieContainer cookie = request.CookieContainer;//如果用不到Cookie，删去即可  
-                                                             //以下是发送的http头，随便加，其中referer挺重要的，有些网站会根据这个来反盗链  
-            request.Referer = "https://passport.ganji.com/login.php?next=/";
-            request.Accept = "Accept:text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8";
-            request.Headers["Accept-Language"] = "zh-CN,zh;q=0.";
-            request.Headers["Accept-Charset"] = "GBK,utf-8;q=0.7,*;q=0.3";
-            request.UserAgent = "User-Agent:Mozilla/5.0 (Windows NT 5.1) AppleWebKit/535.1 (KHTML, like Gecko) Chrome/14.0.835.202 Safari/535.1";
-            request.KeepAlive = true;
-            //上面的http头看情况而定，但是下面俩必须加  
-            request.ContentType = "application/x-www-form-urlencoded";
-            request.Method = "POST";
-
-            Encoding encoding = Encoding.UTF8;//根据网站的编码自定义  
-            byte[] postData = encoding.GetBytes(postString);//postDataStr即为发送的数据，格式还是和上次说的一样  
-            request.ContentLength = postData.Length;
-            Stream requestStream = request.GetRequestStream();
-            requestStream.Write(postData, 0, postData.Length);
-
-            HttpWebResponse response = (HttpWebResponse)request.GetResponse();
-            Stream responseStream = response.GetResponseStream();
-            //如果http头中接受gzip的话，这里就要判断是否为有压缩，有的话，直接解压缩即可  
-            //if (response.Headers["Content-Encoding"] != null && response.Headers["Content-Encoding"].ToLower().Contains("gzip"))
-            //{
-            //    responseStream = new GZipStream(responseStream, CompressionMode.Decompress);
-            //}
-
-
-
-            StreamReader streamReader = new StreamReader(responseStream, encoding);
-            string retString = streamReader.ReadToEnd();
-
-            //string ss = response.Headers["Set-Cookie"].ToString();
-            //foreach (Cookie cookieItem in response.Cookies)
-            //{
-            //    cookie.Add(cookieItem);
-            //}
-
-            streamReader.Close();
-            responseStream.Close();
-
-            var xxx = cookie;
-
-            //return retString;
+            return sb.ToString();
         }
 
-
-
-        private static void LogIn2(string userName, string passWord)
+        private static void WriteLog(string path, string writeLog)
         {
-            //string postString = @"username={0}&password={1}";//这里即为传递的参数，可以用工具抓包分析，也可以自己分析，主要是form里面每一个name都要加进来  
-            //postString = string.Format(postString, userName, passWord);
-
-            string postString = @"";
-
-            CookieContainer cookie = new CookieContainer();
-
-            cookie.SetCookies(new Uri("http://xa.ganji.com/"), "id58=c5/nn1g9JJTBaMvOHSX6Ag==");
-             
-
-            HttpWebRequest request = (HttpWebRequest)WebRequest.Create("http://xa.ganji.com/");
-            //request.CookieContainer = new CookieContainer();
-            //CookieContainer cookie = request.CookieContainer;//如果用不到Cookie，删去即可  
-            //以下是发送的http头，随便加，其中referer挺重要的，有些网站会根据这个来反盗链  
-
-
-            //request.CookieContainer = GetCookie("", "", "", "");
-
-            request.CookieContainer = cookie;
-
-            request.Referer = "http://xa.ganji.com/";
-            request.Accept = "Accept:text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8";
-            request.Headers["Accept-Language"] = "zh-CN,zh;q=0.";
-            request.Headers["Accept-Charset"] = "GBK,utf-8;q=0.7,*;q=0.3";
-            request.UserAgent = "User-Agent:Mozilla/5.0 (Windows NT 5.1) AppleWebKit/535.1 (KHTML, like Gecko) Chrome/14.0.835.202 Safari/535.1";
-            request.KeepAlive = true;
-            //上面的http头看情况而定，但是下面俩必须加  
-            request.ContentType = "application/x-www-form-urlencoded";
-            request.Method = "POST";
-
-            Encoding encoding = Encoding.UTF8;//根据网站的编码自定义  
-            byte[] postData = encoding.GetBytes(postString);//postDataStr即为发送的数据，格式还是和上次说的一样  
-            request.ContentLength = postData.Length;
-            Stream requestStream = request.GetRequestStream();
-            requestStream.Write(postData, 0, postData.Length);
-
-            HttpWebResponse response = (HttpWebResponse)request.GetResponse();
-            Stream responseStream = response.GetResponseStream();
-            //如果http头中接受gzip的话，这里就要判断是否为有压缩，有的话，直接解压缩即可  
-            //if (response.Headers["Content-Encoding"] != null && response.Headers["Content-Encoding"].ToLower().Contains("gzip"))
-            //{
-            //    responseStream = new GZipStream(responseStream, CompressionMode.Decompress);
-            //}
-
-
-
-            StreamReader streamReader = new StreamReader(responseStream, encoding);
-            string retString = streamReader.ReadToEnd();
-
-            //string ss = response.Headers["Set-Cookie"].ToString();
-            //foreach (Cookie cookieItem in response.Cookies)
-            //{
-            //    cookie.Add(cookieItem);
-            //}
-
-            streamReader.Close();
-            responseStream.Close();
-
-            var xxx = cookie;
-
-            //return retString;
+            StreamReader sr = new StreamReader(path, System.Text.Encoding.GetEncoding("utf-8"));
+            string content = sr.ReadToEnd().ToString();
+            sr.Close();
+            content += writeLog;
+            File.WriteAllText(path, content);
         }
 
-
-
-        static CookieContainer GetCookie(string postString, string postUrl, string userName, string passWord)
-        {
-            postString = @"source=ganji_pc_login&xxzltr=3$$-1|-1$$ganji_uuid,2186244710381245062971|GANJISESSID,bd2f006392ab6b5dffdf19203ad099d6$$https://passport.ganji.com/login.php?next=/$$1480474928250$$9$$http://xa.ganji.com/$$1480474929566,358,193$$-1$$usename,1480474932131|usepassword,1480474935879$$usename,1480474935879$$21,23";
-            postUrl = "https://cdata.58.com/btData";
-
-            CookieContainer cookie = new CookieContainer(); 
-
-            //https客户端证书  
-
-            //HttpWebRequest request;
-            ////blabla
-            //X509Certificate cer = X509Certificate.CreateFromCertFile(“你的cer证书文件”);
-            //request.ClientCertificates.Add(cer);
-            ////blabla
-            ServicePointManager.ServerCertificateValidationCallback = new RemoteCertificateValidationCallback(CheckValidationResult);
-
-            HttpWebRequest httpRequset = (HttpWebRequest)HttpWebRequest.Create(postUrl);//创建http 请求
-            httpRequset.Referer = "https://passport.ganji.com/login.php?next=/";
-            httpRequset.CookieContainer = cookie;//设置cookie
-            httpRequset.Method = "POST";//POST 提交
-            httpRequset.KeepAlive = true;
-            httpRequset.UserAgent = "Mozilla/5.0 (Windows NT 10.0; WOW64; Trident/7.0; rv:11.0) like Gecko";
-            httpRequset.Accept = "text/html, application/xhtml+xml, image/jxr, */*";
-            httpRequset.Headers["Accept-Encoding"] = "gzip, deflate";
-            httpRequset.Headers["Accept-Language"] = "en-US,en;q=0.8,zh-Hans-CN;q=0.5,zh-Hans;q=0.3";
-            httpRequset.KeepAlive = true;
-            httpRequset.ContentType = "application/x-www-form-urlencoded";//以上信息在监听请求的时候都有的直接复制过来
-            httpRequset.Host = "cdata.58.com";
-            httpRequset.AllowAutoRedirect = false;
-            byte[] bytes = System.Text.Encoding.UTF8.GetBytes(postString);
-            httpRequset.ContentLength = bytes.Length;
-            Stream stream = httpRequset.GetRequestStream();
-
-            stream.Write(bytes, 0, bytes.Length);
-            stream.Close();//以上是POST数据的写入
-
-            HttpWebResponse httpResponse = (HttpWebResponse)httpRequset.GetResponse();//获得 服务端响应
-            string ss = httpResponse.Headers.Get("Set-Cookie").ToString();
-            var xxx = httpResponse.Cookies;
-
-            Stream responseStream = httpResponse.GetResponseStream();
-            Encoding encoding = Encoding.UTF8;//根据网站的编码自定义  
-            StreamReader streamReader = new StreamReader(stream, encoding);
-            string retString = streamReader.ReadToEnd();
-
-
-            return cookie;//拿到cookie
-        }
-
-        private static bool CheckValidationResult(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors errors)
-        {
-            return true; //总是接受  
-        }
     }
 }
